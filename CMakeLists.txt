@@ -5,11 +5,11 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Wymuszenie flagi -pthread
+# Flags -pthread
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
-# Zależności
+# Dependencies
 find_package(Boost REQUIRED COMPONENTS system)
 find_package(nlohmann_json 3.2.0 REQUIRED)
 
