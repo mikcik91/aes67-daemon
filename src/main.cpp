@@ -4,7 +4,10 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <boost/asio.hpp>
+#include <nlohmann/json.hpp>
+#include "httplib.h"
 #include "DeviceRegistry.hpp"
 
 namespace sap {
@@ -101,7 +104,6 @@ private:
 
 } // namespace sap
 
-// Fires registry.evict_stale() every `interval` seconds on the io_context thread.
 static void schedule_eviction(boost::asio::steady_timer&            timer,
                               std::shared_ptr<sap::DeviceRegistry>  registry,
                               std::chrono::seconds                  interval) {
@@ -112,6 +114,26 @@ static void schedule_eviction(boost::asio::steady_timer&            timer,
         registry->evict_stale();
         schedule_eviction(timer, registry, interval);
     });
+}
+
+static void start_http_server(std::shared_ptr<sap::DeviceRegistry> registry) {
+    std::thread([registry]() {
+        httplib::Server svr;
+        
+        svr.Get("/api/devices", [registry](const httplib::Request&, httplib::Response& res) {
+            const auto devices = registry->get_active_devices();
+            nlohmann::json j = nlohmann::json::array();
+            
+            for (const auto& dev : devices) {
+                j.push_back({{"name", dev.name}, {"ip", dev.source_ip}});
+            }
+            
+            res.set_content(j.dump(), "application/json");
+        });
+
+        std::cout << "[HTTP] REST API server listening on port 8080...\n";
+        svr.listen("0.0.0.0", 8080);
+    }).detach();
 }
 
 int main() {
@@ -130,10 +152,10 @@ int main() {
         auto registry = std::make_shared<sap::DeviceRegistry>(kTimeout, log);
         auto listener = sap::SapListener::create(io_context, config, registry);
         
-        // Periodic stale-device eviction.
         boost::asio::steady_timer evict_timer{io_context};
         schedule_eviction(evict_timer, registry, kEvictRun);
 
+        start_http_server(registry);
         listener->start();
         io_context.run();
     } catch (const std::exception& e) {
