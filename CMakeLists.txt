@@ -10,7 +10,10 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
 # Dependencies
-find_package(Boost REQUIRED COMPONENTS system)
+# boost_system has been header-only since Boost 1.69 and modern distros
+# (Boost >= 1.90) no longer ship a separate boost_system config package,
+# so we only need the Boost headers (Asio/error_code are header-only).
+find_package(Boost REQUIRED)
 find_package(nlohmann_json 3.2.0 REQUIRED)
 
 # Executable
@@ -19,9 +22,9 @@ add_executable(aes67_daemon src/main.cpp)
 target_include_directories(aes67_daemon PRIVATE src)
 
 # Target linking & include directories
-target_link_libraries(aes67_daemon 
-    PRIVATE 
-        Boost::system
+target_link_libraries(aes67_daemon
+    PRIVATE
+        Boost::headers
         nlohmann_json::nlohmann_json
         Threads::Threads
 )
