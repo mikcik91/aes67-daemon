@@ -37,8 +37,10 @@ public:
             std::unique_lock lock{mutex_};
             auto it = devices_.find(info.source_ip);
             if (it != devices_.end()) {
-                // Hot path: just bump the timestamp, skip the string copies.
+                // Hot path: bump the timestamp and refresh the name in case
+                // the device was renamed without changing its IP.
                 it->second.last_seen = Clock::now();
+                it->second.info.name = info.name;
             } else {
                 devices_.emplace(info.source_ip,
                                  Entry{.info = info, .last_seen = Clock::now()});
@@ -65,7 +67,7 @@ public:
     }
 
     // Call this periodically (timer, dedicated thread, etc.).
-    std::size_t evict_stale() {
+    [[nodiscard]] std::size_t evict_stale() {
         std::vector<std::string> expired_names;
         {
             std::unique_lock lock{mutex_};
