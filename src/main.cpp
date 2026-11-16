@@ -23,15 +23,22 @@ struct Config {
 [[nodiscard]] inline std::optional<std::string>
 parse_session_name(std::string_view payload) noexcept {
     constexpr std::string_view kTag{"s="};
-    constexpr std::string_view kCRLF{"\r\n"};
     const auto                 tag_pos = payload.find(kTag);
     if (tag_pos == std::string_view::npos)
         return std::nullopt;
+
     const auto name_begin = tag_pos + kTag.size();
-    const auto name_end   = payload.find(kCRLF, name_begin);
+    auto       name_end   = payload.find_first_of("\r\n", name_begin);
     if (name_end == std::string_view::npos)
+        name_end = payload.size();
+
+    constexpr auto kWhitespace = " \t";
+    const auto     first       = payload.find_first_not_of(kWhitespace, name_begin);
+    if (first == std::string_view::npos || first >= name_end)
         return std::nullopt;
-    return std::string{payload.substr(name_begin, name_end - name_begin)};
+    const auto last = payload.find_last_not_of(kWhitespace, name_end - 1);
+
+    return std::string{payload.substr(first, last - first + 1)};
 }
 
 class SapListener : public std::enable_shared_from_this<SapListener> {
