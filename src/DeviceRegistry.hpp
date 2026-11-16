@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <cstdint>
 #include <functional>
 #include <mutex>
 #include <shared_mutex>
@@ -11,8 +12,11 @@
 namespace sap {
 
 struct DeviceInfo {
-    std::string name;
-    std::string source_ip;
+    std::string  name;          // SDP "s=" — session/stream name
+    std::string  source_ip;     // UDP sender address
+    std::string  stream_address; // SDP "c=" — stream multicast address (may be empty)
+    std::uint16_t stream_port{0}; // SDP "m=" port (0 = not present)
+    std::string  stream_type;   // SDP "m=" media type, e.g. "audio"
 };
 
 class IDeviceObserver {
