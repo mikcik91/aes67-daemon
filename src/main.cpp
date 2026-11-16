@@ -14,7 +14,9 @@ namespace sap {
 
 struct Config {
     std::string   multicast_address{"239.255.255.255"};
-    std::uint16_t port{9875};
+    std::uint16_t sap_port{9875};
+    std::string   http_host{"0.0.0.0"};
+    std::uint16_t http_port{8080};
 };
 
 [[nodiscard]] inline std::optional<std::string>
@@ -59,7 +61,7 @@ class SapListener : public std::enable_shared_from_this<SapListener> {
                 std::shared_ptr<IDeviceObserver> observer)
         : socket_{io_context}, observer_{std::move(observer)} {
         namespace ip = boost::asio::ip;
-        const Endpoint listen_endpoint{ip::address_v4::any(), config.port};
+        const Endpoint listen_endpoint{ip::address_v4::any(), config.sap_port};
         socket_.open(listen_endpoint.protocol());
         socket_.set_option(boost::asio::socket_base::reuse_address{true});
         socket_.bind(listen_endpoint);
@@ -139,7 +141,7 @@ int main() {
     try {
         const sap::Config config{};
         std::cout << "Starting AES67/Dante SAP Listener on " << config.multicast_address << ':'
-                  << config.port << "...\n";
+                  << config.sap_port << "...\n";
 
         boost::asio::io_context io_context;
 
