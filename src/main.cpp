@@ -2,6 +2,7 @@
 #include "httplib.h"
 #include <array>
 #include <boost/asio.hpp>
+#include <csignal>
 #include <iostream>
 #include <memory>
 #include <nlohmann/json.hpp>
@@ -203,10 +204,23 @@ int main() {
         boost::asio::steady_timer evict_timer{io_context};
         schedule_eviction(evict_timer, registry, kEvictRun);
 
+        // Catch SIGINT/SIGTERM and shut down gracefully instead of dying abruptly.
+        boost::asio::signal_set signals{io_context, SIGINT, SIGTERM};
+        signals.async_wait([&](const boost::system::error_code& ec, int sig) {
+            if (ec)
+                return;
+            std::cout << "Received signal " << sig << ", shutting down...\n";
+            listener->shutdown();
+            evict_timer.cancel();
+            io_context.stop();
+        });
+
         listener->start();
         io_context.run();
 
         http.stop();
+        std::cout << "Shutdown complete.\n";
+        return 0;
     } catch (const std::exception& e) {
         std::cerr << "Fatal: " << e.what() << '\n';
         return 1;
