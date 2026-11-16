@@ -1,9 +1,9 @@
 #include "DeviceRegistry.hpp"
+#include "Logger.hpp"
 #include "httplib.h"
 #include <array>
 #include <boost/asio.hpp>
 #include <csignal>
-#include <iostream>
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <optional>
@@ -91,7 +91,7 @@ class SapListener : public std::enable_shared_from_this<SapListener> {
         if (ec == boost::asio::error::operation_aborted)
             return;
         if (ec) {
-            std::cerr << "[SapListener] Receive error: " << ec.message() << '\n';
+            Logger::error("[SapListener] Receive error: " + ec.message());
         } else if (bytes_received > 0) {
             dispatch({recv_buffer_.data(), bytes_received});
         }
@@ -153,10 +153,11 @@ class HttpServer {
             res.set_content("{\"status\":\"ok\"}", "application/json");
         });
 
-        std::cout << "[HTTP] REST API listening on " << host_ << ':' << port_ << '\n';
+        Logger::info("[HTTP] REST API listening on " + host_ + ':' + std::to_string(port_));
         // listen() returns false when the bind fails (e.g. port already in use).
         if (!svr_.listen(host_.c_str(), static_cast<int>(port_))) {
-            std::cerr << "[HTTP] Failed to bind " << host_ << ':' << port_ << " (port busy?)\n";
+            Logger::error("[HTTP] Failed to bind " + host_ + ':' + std::to_string(port_) +
+                          " (port busy?)");
         }
     }
 
@@ -185,12 +186,13 @@ static void schedule_eviction(boost::asio::steady_timer&           timer,
 int main() {
     try {
         const sap::Config config{};
-        std::cout << "Starting AES67/Dante SAP Listener on " << config.multicast_address << ':'
-                  << config.sap_port << "...\n";
+        sap::Logger::info("Starting AES67/Dante SAP Listener on " + config.multicast_address + ':' +
+                          std::to_string(config.sap_port) + "...");
 
         boost::asio::io_context io_context;
 
-        auto log = [](const std::string& msg) { std::cout << msg << '\n'; };
+        // Route registry log lines through the leveled logger.
+        auto log = [](const std::string& msg) { sap::Logger::info(msg); };
 
         constexpr auto kTimeout  = std::chrono::seconds{60};
         constexpr auto kEvictRun = std::chrono::seconds{10};
@@ -209,7 +211,7 @@ int main() {
         signals.async_wait([&](const boost::system::error_code& ec, int sig) {
             if (ec)
                 return;
-            std::cout << "Received signal " << sig << ", shutting down...\n";
+            sap::Logger::warn("Received signal " + std::to_string(sig) + ", shutting down...");
             listener->shutdown();
             evict_timer.cancel();
             io_context.stop();
@@ -219,10 +221,10 @@ int main() {
         io_context.run();
 
         http.stop();
-        std::cout << "Shutdown complete.\n";
+        sap::Logger::info("Shutdown complete.");
         return 0;
     } catch (const std::exception& e) {
-        std::cerr << "Fatal: " << e.what() << '\n';
+        sap::Logger::error(std::string{"Fatal: "} + e.what());
         return 1;
     }
 }
