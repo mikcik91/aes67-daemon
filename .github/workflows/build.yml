@@ -1,0 +1,27 @@
+name: C++ CI Build
+
+on:
+  push:
+    branches: [ "master", "main" ]
+  pull_request:
+    branches: [ "master", "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake g++ libboost-system-dev nlohmann-json3-dev
+
+    - name: Configure CMake
+      uses: lukka/run-cmake@v10
+      with:
+        cmakeArgs: -B build -S . -DCMAKE_BUILD_TYPE=Release
+
+    - name: Build
+      run: cmake --build build --config Release
