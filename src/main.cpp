@@ -112,6 +112,60 @@ class SapListener : public std::enable_shared_from_this<SapListener> {
     std::shared_ptr<IDeviceObserver> observer_;
 };
 
+// Wrapper around httplib::Server running on a joinable thread,
+// so it can be stopped cleanly instead of running detached forever.
+class HttpServer {
+  public:
+    HttpServer(std::string host, std::uint16_t port, std::shared_ptr<DeviceRegistry> registry)
+        : host_{std::move(host)}, port_{port}, registry_{std::move(registry)} {}
+
+    ~HttpServer() {
+        stop();
+    }
+
+    void start() {
+        thread_ = std::thread([this] { run(); });
+    }
+
+    void stop() {
+        if (svr_.is_running())
+            svr_.stop();
+        if (thread_.joinable())
+            thread_.join();
+    }
+
+  private:
+    void run() {
+        svr_.Get("/api/devices",
+                 [registry = registry_](const httplib::Request&, httplib::Response& res) {
+                     const auto     devices = registry->get_active_devices();
+                     nlohmann::json j       = nlohmann::json::array();
+
+                     for (const auto& dev : devices) {
+                         j.push_back({{"name", dev.name}, {"ip", dev.source_ip}});
+                     }
+
+                     res.set_content(j.dump(), "application/json");
+                 });
+
+        svr_.Get("/health", [](const httplib::Request&, httplib::Response& res) {
+            res.set_content("{\"status\":\"ok\"}", "application/json");
+        });
+
+        std::cout << "[HTTP] REST API listening on " << host_ << ':' << port_ << '\n';
+        // listen() returns false when the bind fails (e.g. port already in use).
+        if (!svr_.listen(host_.c_str(), static_cast<int>(port_))) {
+            std::cerr << "[HTTP] Failed to bind " << host_ << ':' << port_ << " (port busy?)\n";
+        }
+    }
+
+    std::string                     host_;
+    std::uint16_t                   port_;
+    std::shared_ptr<DeviceRegistry> registry_;
+    httplib::Server                 svr_;
+    std::thread                     thread_;
+};
+
 } // namespace sap
 
 static void schedule_eviction(boost::asio::steady_timer&           timer,
@@ -125,26 +179,6 @@ static void schedule_eviction(boost::asio::steady_timer&           timer,
             registry->evict_stale();
             schedule_eviction(timer, registry, interval);
         });
-}
-
-static void start_http_server(std::shared_ptr<sap::DeviceRegistry> registry) {
-    std::thread([registry]() {
-        httplib::Server svr;
-
-        svr.Get("/api/devices", [registry](const httplib::Request&, httplib::Response& res) {
-            const auto     devices = registry->get_active_devices();
-            nlohmann::json j       = nlohmann::json::array();
-
-            for (const auto& dev : devices) {
-                j.push_back({{"name", dev.name}, {"ip", dev.source_ip}});
-            }
-
-            res.set_content(j.dump(), "application/json");
-        });
-
-        std::cout << "[HTTP] REST API server listening on port 8080...\n";
-        svr.listen("0.0.0.0", 8080);
-    }).detach();
 }
 
 int main() {
@@ -163,12 +197,16 @@ int main() {
         auto registry = std::make_shared<sap::DeviceRegistry>(kTimeout, log);
         auto listener = sap::SapListener::create(io_context, config, registry);
 
+        sap::HttpServer http{config.http_host, config.http_port, registry};
+        http.start();
+
         boost::asio::steady_timer evict_timer{io_context};
         schedule_eviction(evict_timer, registry, kEvictRun);
 
-        start_http_server(registry);
         listener->start();
         io_context.run();
+
+        http.stop();
     } catch (const std::exception& e) {
         std::cerr << "Fatal: " << e.what() << '\n';
         return 1;
