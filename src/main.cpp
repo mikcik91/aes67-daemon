@@ -185,7 +185,10 @@ static void schedule_eviction(boost::asio::steady_timer&           timer,
         [&timer, registry = std::move(registry), interval](const boost::system::error_code& ec) {
             if (ec)
                 return;
-            registry->evict_stale();
+            const auto evicted = registry->evict_stale();
+            if (evicted > 0) {
+                sap::Logger::info("Evicted " + std::to_string(evicted) + " stale device(s)");
+            }
             schedule_eviction(timer, registry, interval);
         });
 }
