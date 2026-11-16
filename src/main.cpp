@@ -46,9 +46,18 @@ class SapListener : public std::enable_shared_from_this<SapListener> {
         schedule_receive();
     }
 
-    void stop() {
+    void shutdown() noexcept {
         boost::system::error_code ec;
         socket_.cancel(ec);
+        socket_.close(ec);
+    }
+
+    void stop() noexcept {
+        shutdown();
+    }
+
+    ~SapListener() {
+        shutdown();
     }
 
   private:
@@ -85,7 +94,8 @@ class SapListener : public std::enable_shared_from_this<SapListener> {
         } else if (bytes_received > 0) {
             dispatch({recv_buffer_.data(), bytes_received});
         }
-        schedule_receive();
+        if (socket_.is_open())
+            schedule_receive();
     }
 
     void dispatch(std::string_view payload) {
@@ -93,7 +103,7 @@ class SapListener : public std::enable_shared_from_this<SapListener> {
         if (!name.has_value() || !observer_)
             return;
         observer_->on_device_discovered(
-            {.name = *name, .source_ip = sender_endpoint_.address().to_string()});
+            {.name = std::move(*name), .source_ip = sender_endpoint_.address().to_string()});
     }
 
     Socket                           socket_;
