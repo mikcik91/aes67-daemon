@@ -1,0 +1,9 @@
+{
+  "name": "aes67-daemon",
+  "version": "1.1.0",
+  "description": "AES67/Dante SAP multicast discovery daemon with REST API",
+  "dependencies": [
+    "boost-system",
+    "nlohmann-json"
+  ]
+}
