@@ -114,8 +114,7 @@ class SapListener : public std::enable_shared_from_this<SapListener> {
         socket_.open(listen_endpoint.protocol());
         socket_.set_option(boost::asio::socket_base::reuse_address{true});
         socket_.bind(listen_endpoint);
-        socket_.set_option(
-            ip::multicast::join_group(ip::address::from_string(config.multicast_address)));
+        socket_.set_option(ip::multicast::join_group(ip::make_address(config.multicast_address)));
     }
 
     void schedule_receive() {
