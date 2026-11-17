@@ -30,3 +30,24 @@ target_link_libraries(aes67_daemon
 )
 
 target_compile_options(aes67_daemon PRIVATE -Wall -Wextra -Wpedantic)
+
+# Tests (unit tests with GoogleTest, enabled by default)
+option(BUILD_TESTS "Build unit tests" ON)
+if(BUILD_TESTS)
+    enable_testing()
+    include(FetchContent)
+    FetchContent_Declare(
+        googletest
+        URL https://github.com/google/googletest/archive/refs/tags/v1.15.2.tar.gz
+    )
+    # For Windows: Prevent overriding the parent project's compiler/linker settings
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(googletest)
+
+    add_executable(unit_tests tests/test_sdp_parser.cpp tests/test_device_registry.cpp)
+    target_include_directories(unit_tests PRIVATE src)
+    target_link_libraries(unit_tests PRIVATE gtest_main)
+    target_compile_options(unit_tests PRIVATE -Wall -Wextra -Wpedantic)
+
+    add_test(NAME unit_tests COMMAND unit_tests)
+endif()
