@@ -19,11 +19,35 @@ flowchart LR
     F -- Read Lock --> C
 ```
 
+## License
+
+MIT — see [LICENSE](LICENSE).
+
 ## Tech Stack
 * **Language:** Modern C++20 (`std::shared_mutex`, `std::optional`, structured bindings)
 * **Networking:** Boost.Asio (Asynchronous UDP Multicast)
 * **API:** `cpp-httplib` (HTTP Server) and `nlohmann/json` (Serialization)
 * **Design:** Multi-threaded architecture with optimized reader-writer locks (Single Writer, Multiple Readers).
+
+## Project structure
+
+```
+aes67-daemon/
+├── src/                  # daemon sources (header-only components + main.cpp)
+│   ├── main.cpp          # entry point: wires listener, registry, HTTP server
+│   ├── SdpParser.hpp     # SAP/SDP payload parser (pure, unit-testable)
+│   ├── DeviceRegistry.hpp# thread-safe device table with TTL eviction
+│   ├── Logger.hpp        # timestamped logging
+│   └── httplib.h         # vendored cpp-httplib (single header)
+├── tests/                # GoogleTest unit tests
+├── .github/workflows/    # CI (build + tests)
+├── CMakeLists.txt
+├── vcpkg.json            # dependency manifest
+└── mock_sender.py        # helper: sends fake SAP announces for smoke tests
+```
+
+Runtime logs and ad-hoc scratch files live in `logs/` and `tmp/` — both are
+git-ignored and never part of the repository.
 
 ## Build Instructions
 

@@ -30,9 +30,14 @@ public:
     using Clock    = std::chrono::steady_clock;
     using LogSink  = std::function<void(const std::string&)>;
 
-    explicit DeviceRegistry(std::chrono::seconds timeout = std::chrono::seconds{60},
-                            LogSink              log     = nullptr)
-        : timeout_{timeout}, log_{std::move(log)} {}
+    template <typename Rep, typename Period>
+    explicit DeviceRegistry(std::chrono::duration<Rep, Period> timeout,
+                            LogSink log = nullptr)
+        : timeout_{std::chrono::duration_cast<std::chrono::milliseconds>(timeout)},
+          log_{std::move(log)} {}
+
+    explicit DeviceRegistry(LogSink log)
+        : DeviceRegistry{std::chrono::seconds{60}, std::move(log)} {}
 
     // Called from the io_context thread on every SAP packet.
     void on_device_discovered(const DeviceInfo& info) override {
@@ -100,7 +105,7 @@ private:
         Clock::time_point last_seen;
     };
 
-    const std::chrono::seconds                     timeout_;
+    const std::chrono::milliseconds                timeout_;
     LogSink                                        log_;
     mutable std::shared_mutex                      mutex_;
     std::unordered_map<std::string, Entry>         devices_;
