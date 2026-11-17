@@ -19,6 +19,10 @@ flowchart LR
     F -- Read Lock --> C
 ```
 
+## License
+
+MIT — see [LICENSE](LICENSE).
+
 ## Tech Stack
 * **Language:** Modern C++20 (`std::shared_mutex`, `std::optional`, structured bindings)
 * **Networking:** Boost.Asio (Asynchronous UDP Multicast)
