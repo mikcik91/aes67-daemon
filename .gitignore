@@ -29,6 +29,7 @@ compile_commands.json
 *.swo
 *~
 .clion/
+*.code-workspace
 
 # --- Local scratch files (ad-hoc logs, outputs, pids) ---
 logs/
