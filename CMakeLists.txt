@@ -50,4 +50,18 @@ if(BUILD_TESTS)
     target_compile_options(unit_tests PRIVATE -Wall -Wextra -Wpedantic)
 
     add_test(NAME unit_tests COMMAND unit_tests)
+
+    # Functional smoke tests: spawn the daemon, send real SAP packets over
+    # multicast, assert on the REST API. Requires python3; skipped gracefully
+    # if python3 is missing.
+    find_package(Python3 COMPONENTS Interpreter)
+    if(Python3_Interpreter_FOUND)
+        add_test(
+            NAME functional_tests
+            COMMAND ${Python3_EXECUTABLE}
+                    ${CMAKE_SOURCE_DIR}/tests/functional/run_functional_tests.py
+                    $<TARGET_FILE:aes67_daemon>
+        )
+        set_tests_properties(functional_tests PROPERTIES TIMEOUT 90)
+    endif()
 endif()
