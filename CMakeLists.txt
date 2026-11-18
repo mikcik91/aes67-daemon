@@ -10,7 +10,10 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
 # Dependencies
-find_package(Boost REQUIRED COMPONENTS system)
+# boost_system has been header-only since Boost 1.69 and modern distros
+# (Boost >= 1.90) no longer ship a separate boost_system config package,
+# so we only need the Boost headers (Asio/error_code are header-only).
+find_package(Boost REQUIRED)
 find_package(nlohmann_json 3.2.0 REQUIRED)
 
 # Executable
@@ -19,11 +22,46 @@ add_executable(aes67_daemon src/main.cpp)
 target_include_directories(aes67_daemon PRIVATE src)
 
 # Target linking & include directories
-target_link_libraries(aes67_daemon 
-    PRIVATE 
-        Boost::system
+target_link_libraries(aes67_daemon
+    PRIVATE
+        Boost::headers
         nlohmann_json::nlohmann_json
         Threads::Threads
 )
 
 target_compile_options(aes67_daemon PRIVATE -Wall -Wextra -Wpedantic)
+
+# Tests (unit tests with GoogleTest, enabled by default)
+option(BUILD_TESTS "Build unit tests" ON)
+if(BUILD_TESTS)
+    enable_testing()
+    include(FetchContent)
+    FetchContent_Declare(
+        googletest
+        URL https://github.com/google/googletest/archive/refs/tags/v1.15.2.tar.gz
+    )
+    # For Windows: Prevent overriding the parent project's compiler/linker settings
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(googletest)
+
+    add_executable(unit_tests tests/test_sdp_parser.cpp tests/test_device_registry.cpp)
+    target_include_directories(unit_tests PRIVATE src)
+    target_link_libraries(unit_tests PRIVATE gtest_main)
+    target_compile_options(unit_tests PRIVATE -Wall -Wextra -Wpedantic)
+
+    add_test(NAME unit_tests COMMAND unit_tests)
+
+    # Functional smoke tests: spawn the daemon, send real SAP packets over
+    # multicast, assert on the REST API. Requires python3; skipped gracefully
+    # if python3 is missing.
+    find_package(Python3 COMPONENTS Interpreter)
+    if(Python3_Interpreter_FOUND)
+        add_test(
+            NAME functional_tests
+            COMMAND ${Python3_EXECUTABLE}
+                    ${CMAKE_SOURCE_DIR}/tests/functional/run_functional_tests.py
+                    $<TARGET_FILE:aes67_daemon>
+        )
+        set_tests_properties(functional_tests PROPERTIES TIMEOUT 90)
+    endif()
+endif()

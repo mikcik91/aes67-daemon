@@ -1,5 +1,51 @@
+# --- Build artifacts ---
 build/
-.vscode/
+build-*/
+cmake-build-*/
+out/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+CTestTestfile.cmake
+compile_commands.json
+
+# --- Compiled objects & binaries ---
 *.o
+*.obj
 *.a
+*.lib
 *.so
+*.dll
+*.dylib
+*.exe
+*.out
+
+# --- IDE / editor ---
+.vscode/
+.vs/
+.idea/
+*.swp
+*.swo
+*~
+.clion/
+*.code-workspace
+
+# --- Local scratch files (ad-hoc logs, outputs, pids) ---
+logs/
+tmp/
+_*.txt
+_*.log
+*.pid
+smoke_*
+e2e_*
+build_out*.txt
+branch_out.txt
+.continueignore
+
+# --- OS noise ---
+.DS_Store
+Thumbs.db
+
+# --- vcpkg (installed dependencies are machine-local) ---
+vcpkg_installed/

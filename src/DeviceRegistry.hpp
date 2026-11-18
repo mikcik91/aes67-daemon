@@ -30,9 +30,14 @@ public:
     using Clock    = std::chrono::steady_clock;
     using LogSink  = std::function<void(const std::string&)>;
 
-    explicit DeviceRegistry(std::chrono::seconds timeout = std::chrono::seconds{60},
-                            LogSink              log     = nullptr)
-        : timeout_{timeout}, log_{std::move(log)} {}
+    template <typename Rep, typename Period>
+    explicit DeviceRegistry(std::chrono::duration<Rep, Period> timeout,
+                            LogSink log = nullptr)
+        : timeout_{std::chrono::duration_cast<std::chrono::milliseconds>(timeout)},
+          log_{std::move(log)} {}
+
+    explicit DeviceRegistry(LogSink log)
+        : DeviceRegistry{std::chrono::seconds{60}, std::move(log)} {}
 
     // Called from the io_context thread on every SAP packet.
     void on_device_discovered(const DeviceInfo& info) override {
@@ -55,6 +60,23 @@ public:
         if (is_new && log_) {
             log_("[Registry] + " + info.name + " (" + info.source_ip + ")");
         }
+    }
+
+    // Called when a SAP "delete" packet arrives for this source IP.
+    bool on_device_removed(const std::string& source_ip) {
+        std::string removed_name;
+        bool        found = false;
+        {
+            std::unique_lock lock{mutex_};
+            if (auto it = devices_.find(source_ip); it != devices_.end()) {
+                removed_name = it->second.info.name + " (" + source_ip + ")";
+                devices_.erase(it);
+                found = true;
+            }
+        }
+        if (found && log_)
+            log_("[Registry] x " + removed_name + " (SAP delete)");
+        return found;
     }
 
     // Only returns devices seen within the timeout window.
@@ -100,7 +122,7 @@ private:
         Clock::time_point last_seen;
     };
 
-    const std::chrono::seconds                     timeout_;
+    const std::chrono::milliseconds                timeout_;
     LogSink                                        log_;
     mutable std::shared_mutex                      mutex_;
     std::unordered_map<std::string, Entry>         devices_;
