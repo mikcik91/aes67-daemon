@@ -95,3 +95,10 @@ TEST(SdpParser, LfOnlyLineEndingsAlsoWork) {
     EXPECT_EQ(info->stream_address, "239.9.9.9");
     EXPECT_EQ(info->stream_port, 7000);
 }
+
+TEST(SdpParser, DetectsSapDeleteFlag) {
+    // SAP header byte 0: bit 0x20 = version 1 announce, bit 0x04 = T (delete) flag.
+    EXPECT_FALSE(is_sap_delete(std::string_view{"\x20\x00\x00\x00", 4})); // announce
+    EXPECT_TRUE(is_sap_delete(std::string_view{"\x24\x00\x00\x00", 4}));  // delete
+    EXPECT_FALSE(is_sap_delete(""));
+}
