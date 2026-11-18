@@ -62,6 +62,23 @@ public:
         }
     }
 
+    // Called when a SAP "delete" packet arrives for this source IP.
+    bool on_device_removed(const std::string& source_ip) {
+        std::string removed_name;
+        bool        found = false;
+        {
+            std::unique_lock lock{mutex_};
+            if (auto it = devices_.find(source_ip); it != devices_.end()) {
+                removed_name = it->second.info.name + " (" + source_ip + ")";
+                devices_.erase(it);
+                found = true;
+            }
+        }
+        if (found && log_)
+            log_("[Registry] x " + removed_name + " (SAP delete)");
+        return found;
+    }
+
     // Only returns devices seen within the timeout window.
     [[nodiscard]] std::vector<DeviceInfo> get_active_devices() const {
         std::shared_lock lock{mutex_};

@@ -25,6 +25,11 @@ namespace sap {
     return payload.substr(first, last - first + 1);
 }
 
+// SAP header: byte 0, bit 0x04 = "T" flag -> deletion (SAPv2 RFC 2974).
+[[nodiscard]] inline bool is_sap_delete(std::string_view payload) noexcept {
+    return !payload.empty() && (static_cast<unsigned char>(payload[0]) & 0x04) != 0;
+}
+
 [[nodiscard]] inline std::optional<DeviceInfo> parse_sdp(std::string_view payload,
                                                          std::string      source_ip) noexcept {
     const auto name = sdp_line(payload, "s=");

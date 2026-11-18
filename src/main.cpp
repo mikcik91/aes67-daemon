@@ -5,6 +5,7 @@
 #include <array>
 #include <boost/asio.hpp>
 #include <csignal>
+#include <cstdlib>
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <string>
@@ -12,11 +13,47 @@
 
 namespace sap {
 
+namespace detail {
+
+[[nodiscard]] inline std::uint16_t env_port(const char* name, std::uint16_t fallback) noexcept {
+    if (const char* v = std::getenv(name)) {
+        try {
+            const auto parsed = std::stoi(v);
+            if (parsed > 0 && parsed <= 65535)
+                return static_cast<std::uint16_t>(parsed);
+        } catch (...) {
+        }
+    }
+    return fallback;
+}
+
+[[nodiscard]] inline std::string env_str(const char* name, std::string fallback) {
+    if (const char* v = std::getenv(name))
+        return v;
+    return fallback;
+}
+
+[[nodiscard]] inline int env_seconds(const char* name, int fallback) noexcept {
+    if (const char* v = std::getenv(name)) {
+        try {
+            const auto parsed = std::stoi(v);
+            if (parsed > 0)
+                return parsed;
+        } catch (...) {
+        }
+    }
+    return fallback;
+}
+
+} // namespace detail
+
 struct Config {
-    std::string   multicast_address{"239.255.255.255"};
-    std::uint16_t sap_port{9875};
-    std::string   http_host{"0.0.0.0"};
-    std::uint16_t http_port{8080};
+    std::string   multicast_address{detail::env_str("AES67_SAP_GROUP", "239.255.255.255")};
+    std::uint16_t sap_port{detail::env_port("AES67_SAP_PORT", 9875)};
+    std::string   http_host{detail::env_str("AES67_HTTP_HOST", "0.0.0.0")};
+    std::uint16_t http_port{detail::env_port("AES67_HTTP_PORT", 8080)};
+    int           device_timeout_sec{detail::env_seconds("AES67_DEVICE_TIMEOUT", 60)};
+    int           evict_interval_sec{detail::env_seconds("AES67_EVICT_INTERVAL", 10)};
 };
 
 class SapListener : public std::enable_shared_from_this<SapListener> {
@@ -84,8 +121,16 @@ class SapListener : public std::enable_shared_from_this<SapListener> {
     }
 
     void dispatch(std::string_view payload) {
-        auto info = parse_sdp(payload, sender_endpoint_.address().to_string());
-        if (!info.has_value() || !observer_)
+        if (!observer_)
+            return;
+        const auto source_ip = sender_endpoint_.address().to_string();
+        if (is_sap_delete(payload)) {
+            if (auto* reg = dynamic_cast<DeviceRegistry*>(observer_.get()))
+                reg->on_device_removed(source_ip);
+            return;
+        }
+        auto info = parse_sdp(payload, source_ip);
+        if (!info.has_value())
             return;
         observer_->on_device_discovered(std::move(*info));
     }
@@ -184,8 +229,8 @@ int main() {
         // Route registry log lines through the leveled logger.
         auto log = [](const std::string& msg) { sap::Logger::info(msg); };
 
-        constexpr auto kTimeout  = std::chrono::seconds{60};
-        constexpr auto kEvictRun = std::chrono::seconds{10};
+        const auto kTimeout  = std::chrono::seconds{config.device_timeout_sec};
+        const auto kEvictRun = std::chrono::seconds{config.evict_interval_sec};
 
         auto registry = std::make_shared<sap::DeviceRegistry>(kTimeout, log);
         auto listener = sap::SapListener::create(io_context, config, registry);
