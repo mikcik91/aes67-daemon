@@ -5,6 +5,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QSortFilterProxyModel>
+#include <QStatusBar>
 #include <QTableView>
 #include <QVBoxLayout>
 
