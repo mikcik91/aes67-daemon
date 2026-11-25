@@ -9,11 +9,28 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # daemon + tests still build; install qt6-base-dev to enable the GUI target.
 # AUTOMOC etc. are set per-target (below), not globally, so daemon/tests
 # stay free of Qt AUTOGEN warnings.
+#
+# If Qt6 is not on the default search path, CMake also probes common
+# aqtinstall locations (/opt/qt/<ver>/gcc_64) — no CMAKE_PREFIX_PATH needed.
+# Override with -DQT6_FALLBACK_PREFIXES="/custom/qt/path" if your Qt lives elsewhere.
 find_package(Qt6 COMPONENTS Widgets Network QUIET)
+if(NOT Qt6_FOUND)
+    set(QT6_FALLBACK_PREFIXES "/opt/qt" CACHE STRING "Extra prefixes searched for a Qt6 installed via aqtinstall")
+    file(GLOB _qt_aqt_prefixes
+        LIST_DIRECTORIES true
+        "${QT6_FALLBACK_PREFIXES}/*/gcc_64"
+        "${QT6_FALLBACK_PREFIXES}/*/linux/gcc_64"
+    )
+    if(_qt_aqt_prefixes)
+        list(APPEND CMAKE_PREFIX_PATH ${_qt_aqt_prefixes})
+        message(STATUS "Qt6 not found on default path - retrying with aqtinstall prefixes: ${_qt_aqt_prefixes}")
+        find_package(Qt6 COMPONENTS Widgets Network QUIET)
+    endif()
+endif()
 
 option(BUILD_GUI "Build the Qt6 GUI application (aes67_gui)" ON)
 if(BUILD_GUI AND NOT Qt6_FOUND)
-    message(STATUS "Qt6 not found - skipping aes67_gui (install qt6-base-dev to enable)")
+    message(STATUS "Qt6 not found - skipping aes67_gui (install qt6-base-dev, or Qt6 via aqtinstall under /opt/qt, to enable)")
 endif()
 
 # Flags -pthread
