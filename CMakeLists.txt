@@ -7,10 +7,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Qt GUI (AES67 Discovery Tool) — optional. When Qt6 is not installed the
 # daemon + tests still build; install qt6-base-dev to enable the GUI target.
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTOUIC ON)
-set(CMAKE_AUTORCC ON)
-
+# AUTOMOC etc. are set per-target (below), not globally, so daemon/tests
+# stay free of Qt AUTOGEN warnings.
 find_package(Qt6 COMPONENTS Widgets Network QUIET)
 
 option(BUILD_GUI "Build the Qt6 GUI application (aes67_gui)" ON)
@@ -52,6 +50,7 @@ if(BUILD_GUI AND Qt6_FOUND)
         src/gui/DeviceTableModel.cpp
     )
     target_include_directories(aes67_gui PRIVATE src)
+    set_target_properties(aes67_gui PROPERTIES AUTOMOC ON AUTOUIC ON AUTORCC ON)
     target_link_libraries(aes67_gui PRIVATE Qt6::Widgets Qt6::Network)
     target_compile_options(aes67_gui PRIVATE -Wall -Wextra -Wpedantic)
 endif()
