@@ -85,6 +85,7 @@ MIT — see [LICENSE](LICENSE).
 * **Language:** Modern C++20 (`std::shared_mutex`, `std::optional`, structured bindings)
 * **Networking:** Boost.Asio (Asynchronous UDP Multicast)
 * **API:** `cpp-httplib` (HTTP Server) and `nlohmann/json` (Serialization)
+* **Optional GUI:** Qt6 Widgets (`aes67_gui`, requires `qt6-base-dev` to build)
 * **Design:** Multi-threaded architecture with optimized reader-writer locks (Single Writer, Multiple Readers).
 
 ## Project structure
@@ -96,7 +97,8 @@ aes67-daemon/
 │   ├── SdpParser.hpp     # SAP/SDP payload parser (pure, unit-testable)
 │   ├── DeviceRegistry.hpp# thread-safe device table with TTL eviction
 │   ├── Logger.hpp        # timestamped logging
-│   └── httplib.h         # vendored cpp-httplib (single header)
+│   ├── httplib.h         # vendored cpp-httplib (single header)
+│   └── gui/              # optional Qt6 GUI (aes67_gui target, needs qt6-base-dev)
 ├── tests/                # GoogleTest unit tests
 ├── .github/workflows/    # CI (build + tests)
 ├── CMakeLists.txt
@@ -130,3 +132,27 @@ sudo apt-get install cmake g++ libboost-system-dev nlohmann-json3-dev
 cmake -B build -S . && cmake --build build
 ./build/aes67_daemon
 ```
+
+### Qt GUI (optional)
+
+The repository also contains an optional Qt6 desktop app (`aes67_gui`) that
+visualizes discovered devices in real time. It is **not required** for the
+daemon — without Qt6 installed, CMake simply skips the GUI target and builds
+only `aes67_daemon` + tests.
+
+To build the GUI you need Qt6 development packages:
+
+```bash
+# Debian/Ubuntu
+sudo apt-get install qt6-base-dev
+# Fedora: sudo dnf install qt6-qtbase-devel
+# Windows/macOS: install Qt 6 via the official Qt installer or vcpkg
+```
+
+```bash
+cmake -B build -S . && cmake --build build --target aes67_gui
+./build/aes67_gui
+```
+
+To explicitly disable the GUI target even when Qt6 is present:
+`cmake -B build -S . -DBUILD_GUI=OFF`
