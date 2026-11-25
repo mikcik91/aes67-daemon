@@ -29,6 +29,17 @@ jobs:
     - name: Smoke-test Qt GUI (offscreen)
       run: QT_QPA_PLATFORM=offscreen timeout 5 ./build/aes67_gui || test $? -eq 124
 
+    - name: Render GUI screenshot artifact
+      run: QT_QPA_PLATFORM=offscreen ./build/aes67_gui --screenshot gui_screenshot.png
+
+    - name: Upload GUI screenshot
+      uses: actions/upload-artifact@v4
+      with:
+        name: gui-screenshot
+        path: gui_screenshot.png
+        retention-days: 14
+        if-no-files-found: error
+
     - name: Run unit tests
       run: ctest --test-dir build --output-on-failure -V -R unit_tests
 
