@@ -71,6 +71,8 @@ The REST API is then available at `http://localhost:8080/api/devices`
 
 ### Qt GUI
 
+![AES67 Discovery GUI — live device table](docs/gui_screenshot.png)
+
 ```bash
 ./build/aes67_gui
 ```
@@ -87,14 +89,61 @@ The REST API is then available at `http://localhost:8080/api/devices`
   `sudo apt-get install libxcb-icccm4 libxcb-keysyms1 libxcb-cursor0 libwayland-cursor0 libxkbcommon-x11-0`
 
 * **Headless (CI, server, WSL without a display):** render offscreen, save a
-  screenshot and exit:
+  screenshot and exit. `AES67_SCREENSHOT_DELAY_MS` controls how long the app
+  listens for SAP traffic before grabbing the shot (useful to let a few
+  announces arrive first):
 
   ```bash
-  QT_QPA_PLATFORM=offscreen ./build/aes67_gui --screenshot shot.png
+  QT_QPA_PLATFORM=offscreen AES67_SCREENSHOT_DELAY_MS=6000 \
+      ./build/aes67_gui --screenshot shot.png
+  ```
+
+* **Watch it live with a fake device:** start the bundled mock sender and the
+  GUI together — a "Virtual Q-SYS Core" row appears within a few seconds:
+
+  ```bash
+  python3 mock_sender.py &          # sends periodic fake SAP announces
+  QT_QPA_PLATFORM=xcb ./build/aes67_gui
   ```
 
 The GUI and the daemon are independent processes — run both to watch live
 SAP traffic in the window while the REST API serves the same data.
+
+#### How the GUI is wired (Model-View + Qt signals, no mutexes)
+
+The network layer never touches the widgets directly. `SapListenerQt`
+owns a `QUdpSocket` bound to the SAP multicast group; on `readyRead` it parses
+each datagram with the **same** `SdpParser.hpp` the daemon uses, then emits
+Qt signals (`deviceDiscovered` / `deviceRemoved`). Those signals are
+delivered across threads by Qt's event loop (queued connection) to
+`DeviceTableModel` — a `QAbstractTableModel` — which updates its internal
+rows and emits `dataChanged`/`rowsInserted`. A `QSortFilterProxyModel` sits
+between the model and the `QTableView`, providing the filter box
+(`QLineEdit` → `setFilterFixedString`) and click-to-sort columns.
+
+```mermaid
+flowchart LR
+    A[SAP multicast UDP 239.255.255.255:9875] --> B[SapListenerQt<br/>QUdpSocket::readyRead<br/>+ shared SdpParser]
+    B -- signals: deviceDiscovered / deviceRemoved --> C[DeviceTableModel<br/>QAbstractTableModel]
+    C --> D[QSortFilterProxyModel<br/>filter + sort]
+    E[QLineEdit filter box] -- setFilterFixedString --> D
+    D --> F[QTableView]
+    G[QTimer every 1s<br/>aging sweep] --> C
+    C -. stale >= 30s: red row .-> F
+    C -. gone >= 60s: row removed .-> F
+```
+
+* **Columns:** Name, IP, Stream (`address:port` or `-`), Last Seen.
+* **Thread-safety:** all socket events are marshalled onto the GUI thread by
+  the Qt event loop, so the model is only ever mutated from one thread — no
+  `std::shared_mutex` needed here (unlike the daemon's `DeviceRegistry`,
+  which is shared between the Asio worker threads and the HTTP handlers).
+* **Aging (Etap 5):** a `QTimer` fires every second and calls
+  `refreshAging()`. A device not re-announced within **30 s** gets a red row
+  background (`Qt::BackgroundRole`); after **60 s** (the same default as
+  `AES67_DEVICE_TIMEOUT`) the row is removed. A SAP *delete* packet removes
+  the row immediately.
+
 
 ## Testing
 
@@ -125,7 +174,7 @@ MIT — see [LICENSE](LICENSE).
 * **Language:** Modern C++20 (`std::shared_mutex`, `std::optional`, structured bindings)
 * **Networking:** Boost.Asio (Asynchronous UDP Multicast)
 * **API:** `cpp-httplib` (HTTP Server) and `nlohmann/json` (Serialization)
-* **Optional GUI:** Qt6 Widgets (`aes67_gui`, requires `qt6-base-dev` to build)
+* **Optional GUI:** Qt6 Widgets (`aes67_gui`, requires `qt6-base-dev` to build) — classic Model-View (`QAbstractTableModel` + `QSortFilterProxyModel` + `QTableView`) with signals/slots delivering network events onto the GUI thread, so no manual locking is needed
 * **Design:** Multi-threaded architecture with optimized reader-writer locks (Single Writer, Multiple Readers).
 
 ## Project structure
@@ -141,6 +190,7 @@ aes67-daemon/
 │   └── gui/              # optional Qt6 GUI (aes67_gui target, needs qt6-base-dev)
 ├── tests/                # GoogleTest unit tests
 ├── .github/workflows/    # CI (build + tests)
+├── docs/                 # screenshots for the README (GUI)
 ├── CMakeLists.txt
 ├── vcpkg.json            # dependency manifest
 └── mock_sender.py        # helper: sends fake SAP announces for smoke tests
