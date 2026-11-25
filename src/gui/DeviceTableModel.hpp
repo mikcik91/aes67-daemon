@@ -37,6 +37,9 @@ public:
     bool upsertDevice(const QString& name, const QString& ip, const QString& stream,
                       const QDateTime& when);
 
+    // Remove the row for this source IP (SAP delete packet). Returns true if found.
+    bool removeDevice(const QString& ip);
+
     // Marks rows whose lastSeen is older than staleSec as stale (red background)
     // and removes rows older than removeSec. Returns the number of removed rows.
     int refreshAging(const QDateTime& now, int staleSec, int removeSec);

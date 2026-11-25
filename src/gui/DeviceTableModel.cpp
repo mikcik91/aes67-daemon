@@ -72,6 +72,18 @@ bool DeviceTableModel::upsertDevice(const QString& name, const QString& ip,
     return true;
 }
 
+bool DeviceTableModel::removeDevice(const QString& ip) {
+    const auto it = indexByIp_.constFind(ip);
+    if (it == indexByIp_.constEnd())
+        return false;
+    const int row = it.value();
+    beginRemoveRows({}, row, row);
+    rows_.removeAt(row);
+    endRemoveRows();
+    rebuildIndex();
+    return true;
+}
+
 int DeviceTableModel::refreshAging(const QDateTime& now, int staleSec, int removeSec) {
     int removed = 0;
 
