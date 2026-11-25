@@ -34,3 +34,13 @@ jobs:
 
     - name: Run functional tests
       run: ctest --test-dir build --output-on-failure -V -R functional_tests
+
+    - name: Upload Linux binaries as artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: linux-binaries
+        path: |
+          build/aes67_daemon
+          build/aes67_gui
+        retention-days: 14
+        if-no-files-found: error
