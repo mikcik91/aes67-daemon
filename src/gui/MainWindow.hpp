@@ -10,6 +10,8 @@ class QLabel;
 
 namespace sap::gui {
 
+class SapListenerQt;
+
 class MainWindow : public QMainWindow {
     Q_OBJECT
 
@@ -22,6 +24,7 @@ private:
     QTableView*             table_{};
     QLineEdit*              filter_{};
     QLabel*                 countLabel_{};
+    SapListenerQt*          listener_{};
 };
 
 } // namespace sap::gui
