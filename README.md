@@ -56,6 +56,46 @@ All settings are optional environment variables (defaults in parentheses):
 SAP **delete** packets (RFC 2974 "T" flag) remove a device immediately,
 without waiting for the timeout.
 
+## Running
+
+### Daemon
+
+```bash
+./build/aes67_daemon
+# optional overrides via the env vars from the table above, e.g.:
+AES67_SAP_PORT=9875 AES67_HTTP_PORT=8080 ./build/aes67_daemon
+```
+
+The REST API is then available at `http://localhost:8080/api/devices`
+(and `http://localhost:8080/health`).
+
+### Qt GUI
+
+```bash
+./build/aes67_gui
+```
+
+* **Linux desktop / WSL2 with WSLg:** run it directly; on WSL force the X11
+  backend if the Wayland one fails (Qt 6.5 needs a newer `libwayland-client`
+  than Ubuntu 20.04 ships):
+
+  ```bash
+  QT_QPA_PLATFORM=xcb ./build/aes67_gui
+  ```
+
+  Extra runtime libs the GUI may need on a minimal distro:
+  `sudo apt-get install libxcb-icccm4 libxcb-keysyms1 libxcb-cursor0 libwayland-cursor0 libxkbcommon-x11-0`
+
+* **Headless (CI, server, WSL without a display):** render offscreen, save a
+  screenshot and exit:
+
+  ```bash
+  QT_QPA_PLATFORM=offscreen ./build/aes67_gui --screenshot shot.png
+  ```
+
+The GUI and the daemon are independent processes — run both to watch live
+SAP traffic in the window while the REST API serves the same data.
+
 ## Testing
 
 ```bash
