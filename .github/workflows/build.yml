@@ -40,11 +40,8 @@ jobs:
         retention-days: 14
         if-no-files-found: error
 
-    - name: Run unit tests
-      run: ctest --test-dir build --output-on-failure -V -R unit_tests
-
-    - name: Run functional tests
-      run: ctest --test-dir build --output-on-failure -V -R functional_tests
+    - name: Run all tests (unit, sap_listener_qt, functional)
+      run: ctest --test-dir build --output-on-failure -V
 
     - name: Upload Linux binaries as artifact
       uses: actions/upload-artifact@v4
