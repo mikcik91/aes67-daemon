@@ -2,6 +2,7 @@
 
 #include <QApplication>
 #include <QCommandLineParser>
+#include <QProcessEnvironment>
 #include <QTimer>
 
 // Headless-friendly: `--screenshot out.png` renders the window offscreen,
@@ -22,7 +23,12 @@ int main(int argc, char* argv[]) {
 
     if (parser.isSet(shotOpt)) {
         const QString path = parser.value(shotOpt);
-        QTimer::singleShot(300, &app, [&window, path, &app] {
+        // Delay is configurable via AES67_SCREENSHOT_DELAY_MS (default 300) so a
+        // live test can let SAP packets arrive before the grab.
+        const auto env = QProcessEnvironment::systemEnvironment();
+        const int delayMs = env.value(QStringLiteral("AES67_SCREENSHOT_DELAY_MS"),
+                                      QStringLiteral("300")).toInt();
+        QTimer::singleShot(delayMs, &app, [&window, path, &app] {
             window.grab().save(path);
             app.quit();
         });
