@@ -5,6 +5,38 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Qt GUI (AES67 Discovery Tool) — optional. When Qt6 is not installed the
+# daemon + tests still build; install qt6-base-dev to enable the GUI target.
+# AUTOMOC etc. are set per-target (below), not globally, so daemon/tests
+# stay free of Qt AUTOGEN warnings.
+#
+# If Qt6 is not on the default search path, CMake also probes common
+# aqtinstall locations (/opt/qt and ~/qt, plus /custom via
+# -DQT6_FALLBACK_PREFIXES) — no CMAKE_PREFIX_PATH needed.
+find_package(Qt6 COMPONENTS Widgets Network QUIET)
+if(NOT Qt6_FOUND)
+    set(QT6_FALLBACK_PREFIXES "/opt/qt" "$ENV{HOME}/qt" CACHE STRING "Extra prefixes searched for a Qt6 installed via aqtinstall")
+    set(_qt_aqt_prefixes "")
+    foreach(_root IN LISTS QT6_FALLBACK_PREFIXES)
+        file(GLOB _found
+            LIST_DIRECTORIES true
+            "${_root}/*/gcc_64"
+            "${_root}/*/linux/gcc_64"
+        )
+        list(APPEND _qt_aqt_prefixes ${_found})
+    endforeach()
+    if(_qt_aqt_prefixes)
+        list(APPEND CMAKE_PREFIX_PATH ${_qt_aqt_prefixes})
+        message(STATUS "Qt6 not found on default path - retrying with aqtinstall prefixes: ${_qt_aqt_prefixes}")
+        find_package(Qt6 COMPONENTS Widgets Network QUIET)
+    endif()
+endif()
+
+option(BUILD_GUI "Build the Qt6 GUI application (aes67_gui)" ON)
+if(BUILD_GUI AND NOT Qt6_FOUND)
+    message(STATUS "Qt6 not found - skipping aes67_gui (install qt6-base-dev, or Qt6 via aqtinstall into /opt/qt or ~/qt, to enable)")
+endif()
+
 # Flags -pthread
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
@@ -31,6 +63,20 @@ target_link_libraries(aes67_daemon
 
 target_compile_options(aes67_daemon PRIVATE -Wall -Wextra -Wpedantic)
 
+# Qt GUI application (built only when Qt6 was found and BUILD_GUI is ON)
+if(BUILD_GUI AND Qt6_FOUND)
+    add_executable(aes67_gui
+        src/gui/main_gui.cpp
+        src/gui/MainWindow.cpp
+        src/gui/DeviceTableModel.cpp
+        src/gui/SapListenerQt.cpp
+    )
+    target_include_directories(aes67_gui PRIVATE src)
+    set_target_properties(aes67_gui PROPERTIES AUTOMOC ON AUTOUIC ON AUTORCC ON)
+    target_link_libraries(aes67_gui PRIVATE Qt6::Widgets Qt6::Network)
+    target_compile_options(aes67_gui PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
 # Tests (unit tests with GoogleTest, enabled by default)
 option(BUILD_TESTS "Build unit tests" ON)
 if(BUILD_TESTS)
@@ -50,6 +96,22 @@ if(BUILD_TESTS)
     target_compile_options(unit_tests PRIVATE -Wall -Wextra -Wpedantic)
 
     add_test(NAME unit_tests COMMAND unit_tests)
+
+    # Qt signal-level test for the GUI's SAP listener: announce -> deviceDiscovered,
+    # delete (RFC 2974 "T" flag) -> deviceRemoved, then clean exit. Guards against
+    # regressions in the delete path. Only built when Qt6 Network is available.
+    if(TARGET Qt6::Network)
+        add_executable(test_sap_listener_qt
+            tests/test_sap_listener_qt.cpp
+            src/gui/SapListenerQt.cpp
+        )
+        target_include_directories(test_sap_listener_qt PRIVATE src)
+        set_target_properties(test_sap_listener_qt PROPERTIES AUTOMOC ON)
+        target_link_libraries(test_sap_listener_qt PRIVATE Qt6::Core Qt6::Network)
+        target_compile_options(test_sap_listener_qt PRIVATE -Wall -Wextra -Wpedantic)
+        add_test(NAME sap_listener_qt COMMAND test_sap_listener_qt)
+        set_tests_properties(sap_listener_qt PROPERTIES TIMEOUT 15)
+    endif()
 
     # Functional smoke tests: spawn the daemon, send real SAP packets over
     # multicast, assert on the REST API. Requires python3; skipped gracefully
