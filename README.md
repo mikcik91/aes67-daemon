@@ -147,20 +147,23 @@ To build the GUI you need Qt6 development packages:
 sudo apt-get install qt6-base-dev
 # Fedora: sudo dnf install qt6-qtbase-devel
 # Windows/macOS: official Qt installer or vcpkg
-# Ubuntu 20.04 (no qt6 in apt) — install via aqtinstall:
+# Ubuntu 20.04 (no qt6 in apt) — install via aqtinstall into ~/qt (no sudo needed,
+# note: "sudo ~/.local/bin/aqt" breaks because sudo changes HOME to /root):
 sudo apt install -y python3-pip libgl1-mesa-dev libxkbcommon-x11-0 libxcb-cursor0
 pip3 install aqtinstall
-sudo ~/.local/bin/aqt install-qt linux desktop 6.5.3 gcc_64 -O /opt/qt
+~/.local/bin/aqt install-qt linux desktop 6.5.3 gcc_64 -O ~/qt
 ```
 
-If Qt6 is not on the default CMake search path (e.g. installed to `/opt/qt`
-via `aqtinstall`), point CMake at it with `CMAKE_PREFIX_PATH`:
+CMake automatically probes `/opt/qt` **and** `~/qt` for aqtinstall layouts
+(`<dir>/<version>/gcc_64`), so no `CMAKE_PREFIX_PATH` is needed:
 
 ```bash
-cmake -B build -S . -DCMAKE_PREFIX_PATH=/opt/qt/6.5.3/gcc_64
-cmake --build build --target aes67_gui
+cmake -B build -S . && cmake --build build --target aes67_gui
 ./build/aes67_gui
 ```
+
+If your Qt lives somewhere else: `cmake -B build -S . -DQT6_FALLBACK_PREFIXES=/custom/dir`
+or `-DCMAKE_PREFIX_PATH=/custom/qt/6.5.3/gcc_64`.
 
 To explicitly disable the GUI target even when Qt6 is present:
 `cmake -B build -S . -DBUILD_GUI=OFF`
