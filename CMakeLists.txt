@@ -97,6 +97,22 @@ if(BUILD_TESTS)
 
     add_test(NAME unit_tests COMMAND unit_tests)
 
+    # Qt signal-level test for the GUI's SAP listener: announce -> deviceDiscovered,
+    # delete (RFC 2974 "T" flag) -> deviceRemoved, then clean exit. Guards against
+    # regressions in the delete path. Only built when Qt6 Network is available.
+    if(TARGET Qt6::Network)
+        add_executable(test_sap_listener_qt
+            tests/test_sap_listener_qt.cpp
+            src/gui/SapListenerQt.cpp
+        )
+        target_include_directories(test_sap_listener_qt PRIVATE src)
+        set_target_properties(test_sap_listener_qt PROPERTIES AUTOMOC ON)
+        target_link_libraries(test_sap_listener_qt PRIVATE Qt6::Core Qt6::Network)
+        target_compile_options(test_sap_listener_qt PRIVATE -Wall -Wextra -Wpedantic)
+        add_test(NAME sap_listener_qt COMMAND test_sap_listener_qt)
+        set_tests_properties(sap_listener_qt PROPERTIES TIMEOUT 15)
+    endif()
+
     # Functional smoke tests: spawn the daemon, send real SAP packets over
     # multicast, assert on the REST API. Requires python3; skipped gracefully
     # if python3 is missing.
