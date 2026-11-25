@@ -143,14 +143,22 @@ only `aes67_daemon` + tests.
 To build the GUI you need Qt6 development packages:
 
 ```bash
-# Debian/Ubuntu
+# Debian/Ubuntu >= 22.04
 sudo apt-get install qt6-base-dev
 # Fedora: sudo dnf install qt6-qtbase-devel
-# Windows/macOS: install Qt 6 via the official Qt installer or vcpkg
+# Windows/macOS: official Qt installer or vcpkg
+# Ubuntu 20.04 (no qt6 in apt) — install via aqtinstall:
+sudo apt install -y python3-pip libgl1-mesa-dev libxkbcommon-x11-0 libxcb-cursor0
+pip3 install aqtinstall
+sudo ~/.local/bin/aqt install-qt linux desktop 6.5.3 gcc_64 -O /opt/qt
 ```
 
+If Qt6 is not on the default CMake search path (e.g. installed to `/opt/qt`
+via `aqtinstall`), point CMake at it with `CMAKE_PREFIX_PATH`:
+
 ```bash
-cmake -B build -S . && cmake --build build --target aes67_gui
+cmake -B build -S . -DCMAKE_PREFIX_PATH=/opt/qt/6.5.3/gcc_64
+cmake --build build --target aes67_gui
 ./build/aes67_gui
 ```
 
