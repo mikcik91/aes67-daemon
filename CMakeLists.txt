@@ -69,6 +69,7 @@ if(BUILD_GUI AND Qt6_FOUND)
         src/gui/main_gui.cpp
         src/gui/MainWindow.cpp
         src/gui/DeviceTableModel.cpp
+        src/gui/SapListenerQt.cpp
     )
     target_include_directories(aes67_gui PRIVATE src)
     set_target_properties(aes67_gui PROPERTIES AUTOMOC ON AUTOUIC ON AUTORCC ON)
